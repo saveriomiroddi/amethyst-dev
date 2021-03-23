@@ -9,7 +9,7 @@ additional-css = ["style/book.css"]
 additional-js = ["style/book.js"]
 
 [output.linkcheck]
-follow-web-links = true
+follow-web-links = false
 warning-policy = "warn"
 
 [output.linkcheck.http-headers]
