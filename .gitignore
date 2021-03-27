@@ -21,3 +21,6 @@ thumbs.db
 
 # Thread profiler output
 thread_profile.json
+
+# Frame limiter profiler output
+framelimiter_data
