@@ -72,6 +72,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::frame_limiter_profiler::FrameLimiterProfiler;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 
@@ -150,6 +151,7 @@ pub struct FrameLimiter {
     frame_duration: Duration,
     strategy: FrameRateLimitStrategy,
     last_call: Instant,
+    profiler: FrameLimiterProfiler,
 }
 
 impl Default for FrameLimiter {
@@ -160,11 +162,14 @@ impl Default for FrameLimiter {
 
 impl FrameLimiter {
     /// Creates a new frame limiter.
+    ///
+    /// Now with profiler™
     pub fn new(strategy: FrameRateLimitStrategy, fps: u32) -> Self {
         let mut s = Self {
             frame_duration: Duration::from_secs(0),
             strategy: Default::default(),
             last_call: Instant::now(),
+            profiler: FrameLimiterProfiler::new(fps),
         };
         s.set_rate(strategy, fps);
         s
@@ -178,6 +183,7 @@ impl FrameLimiter {
         }
         self.strategy = strategy;
         self.frame_duration = Duration::from_secs(1) / fps;
+        self.profiler.set_frame_duration(fps);
     }
 
     /// Creates a new frame limiter with the given config.
@@ -201,6 +207,8 @@ impl FrameLimiter {
     ///
     /// [`Application`]: ../../amethyst/struct.Application.html
     pub fn wait(&mut self) {
+        self.profiler.mark_sleep_start(self.last_call);
+
         use self::FrameRateLimitStrategy::*;
         match self.strategy {
             Unlimited => yield_now(),
@@ -214,6 +222,9 @@ impl FrameLimiter {
                 self.do_yield();
             }
         }
+
+        self.profiler.compute_and_store_frame_timings();
+
         self.last_call = Instant::now();
     }
 
