@@ -94,6 +94,10 @@ pub enum FrameRateLimitStrategy {
     /// Sleep repeatedly until the frame duration has passed.
     Sleep,
 
+    #[cfg(windows)]
+    /// Windows-tweaked version of the sleep (via timeBeginPeriod).
+    SleepTweaked,
+
     /// Use sleep and yield combined.
     ///
     /// Will sleep repeatedly until the given duration remains, and then will yield repeatedly
@@ -212,6 +216,9 @@ impl FrameLimiter {
 
             Sleep => self.do_sleep(ZERO),
 
+            #[cfg(windows)]
+            SleepTweaked => self.do_sleep_tweaked(),
+
             SleepAndYield(dur) => {
                 self.do_sleep(dur);
                 self.do_yield();
@@ -237,6 +244,17 @@ impl FrameLimiter {
             } else {
                 sleep(frame_duration - elapsed);
             }
+        }
+    }
+
+    #[cfg(windows)]
+    fn do_sleep_tweaked(&self) {
+        let sleep_time = self
+            .frame_duration
+            .checked_sub(Instant::now() - self.last_call);
+
+        if let Some(sleep_time) = sleep_time {
+            spin_sleep::sleep(sleep_time);
         }
     }
 
