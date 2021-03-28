@@ -99,6 +99,9 @@ pub enum FrameRateLimitStrategy {
     /// Will sleep repeatedly until the given duration remains, and then will yield repeatedly
     /// for the remaining frame time.
     SleepAndYield(Duration),
+
+    /// Use a spin loop (busy wait), with a PAUSE intrinsic.
+    SpinLoop,
 }
 
 impl Default for FrameRateLimitStrategy {
@@ -213,6 +216,8 @@ impl FrameLimiter {
                 self.do_sleep(dur);
                 self.do_yield();
             }
+
+            SpinLoop => self.do_spin_loop(),
         }
         self.last_call = Instant::now();
     }
@@ -232,6 +237,12 @@ impl FrameLimiter {
             } else {
                 sleep(frame_duration - elapsed);
             }
+        }
+    }
+
+    fn do_spin_loop(&self) {
+        while Instant::now() - self.last_call < self.frame_duration {
+            std::hint::spin_loop();
         }
     }
 }
